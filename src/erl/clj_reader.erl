@@ -1052,9 +1052,32 @@ read_dispatch(#{src := <<"#"/utf8, Src/binary>>} = State) ->
     $_ -> read_discard(NewState);
     $? -> read_cond(NewState);
     $: -> read_namespaced_map(NewState);
+    $# -> read_symbolic_value(NewState);
     $< -> ?ERROR(<<"Unreadable form">>, location(State));
     _  -> read_tagged(consume_char(State))
   end.
+
+%%------------------------------------------------------------------------------
+%% ## symbolic value
+%%------------------------------------------------------------------------------
+
+-spec read_symbolic_value(state()) -> state().
+read_symbolic_value(State) ->
+  {Symbol, State1} = read_pop_one(State),
+  ?ERROR_WHEN( not clj_rt:'symbol?'(Symbol)
+             , <<"Invalid token: ##">>
+             , location(State)
+             ),
+  Name = 'clojerl.Symbol':name(Symbol),
+  Value = case Name of
+            <<"Inf">>  -> '##Inf';
+            <<"-Inf">> -> '##-Inf';
+            <<"NaN">>  -> '##NaN';
+            _          -> ?ERROR( <<"Unknown symbolic value: ##", Name/binary>>
+                                , location(State)
+                                )
+          end,
+  push_form(Value, State1).
 
 %%------------------------------------------------------------------------------
 %% #' var

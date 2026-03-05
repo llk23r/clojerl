@@ -1,0 +1,187 @@
+;   Copyright (c) Rich Hickey. All rights reserved.
+;   The use and distribution terms for this software are covered by the
+;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
+;   which can be found in the file epl-v10.html at the root of this distribution.
+;   By using this software in any fashion, you are agreeing to be bound by
+;   the terms of this license.
+;   You must not remove this notice, or any other, from this software.
+
+(ns ^{:doc "Clojure wrapper functions for Erlang's math module.
+  Provides common mathematical functions."
+      :added "1.11"}
+  clojure.math)
+
+(def ^{:doc "Constant for e, the base for natural logarithms.
+  See: https://en.wikipedia.org/wiki/E_(mathematical_constant)"
+       :added "1.11"}
+  E
+  (math/exp 1))
+
+(def ^{:doc "Constant for pi, the ratio of a circle's circumference to its diameter."
+       :added "1.11"}
+  PI
+  (math/pi))
+
+(defn sin
+  "Returns the sine of an angle.
+  If a is ##NaN, ##-Inf, ##Inf => ##NaN"
+  {:added "1.11"}
+  [a]
+  (math/sin a))
+
+(defn cos
+  "Returns the cosine of an angle."
+  {:added "1.11"}
+  [a]
+  (math/cos a))
+
+(defn tan
+  "Returns the tangent of an angle."
+  {:added "1.11"}
+  [a]
+  (math/tan a))
+
+(defn asin
+  "Returns the arc sine of a value."
+  {:added "1.11"}
+  [a]
+  (math/asin a))
+
+(defn acos
+  "Returns the arc cosine of a value."
+  {:added "1.11"}
+  [a]
+  (math/acos a))
+
+(defn atan
+  "Returns the arc tangent of a value."
+  {:added "1.11"}
+  [a]
+  (math/atan a))
+
+(defn atan2
+  "Returns the angle theta from the conversion of rectangular
+  coordinates (x, y) to polar coordinates (r, theta)."
+  {:added "1.11"}
+  [y x]
+  (math/atan2 y x))
+
+(defn sqrt
+  "Returns the positive square root of a."
+  {:added "1.11"}
+  [a]
+  (math/sqrt a))
+
+(defn cbrt
+  "Returns the cube root of a."
+  {:added "1.11"}
+  [a]
+  (let [sign (if (neg? a) -1.0 1.0)]
+    (* sign (math/pow (abs a) (/ 1.0 3.0)))))
+
+(defn pow
+  "Returns the value of a raised to the power of b."
+  {:added "1.11"}
+  [a b]
+  (math/pow a b))
+
+(defn exp
+  "Returns Euler's number e raised to the power of a."
+  {:added "1.11"}
+  [a]
+  (math/exp a))
+
+(defn log
+  "Returns the natural logarithm (base e) of a."
+  {:added "1.11"}
+  [a]
+  (math/log a))
+
+(defn log10
+  "Returns the logarithm (base 10) of a."
+  {:added "1.11"}
+  [a]
+  (math/log10 a))
+
+(defn log1p
+  "Returns ln(1+a). For small values of a, log1p(a) is more accurate
+  than log(1 + a)."
+  {:added "1.11"}
+  [a]
+  (math/log(+ 1.0 a)))
+
+(defn floor
+  "Returns the largest value that is less than or equal to a
+  and is equal to a mathematical integer."
+  {:added "1.11"}
+  [a]
+  (math/floor a))
+
+(defn ceil
+  "Returns the smallest value that is greater than or equal to a
+  and is equal to a mathematical integer."
+  {:added "1.11"}
+  [a]
+  (math/ceil a))
+
+(defn round
+  "Returns the closest long to a."
+  {:added "1.11"}
+  [a]
+  (erlang/round a))
+
+(defn signum
+  "Returns the signum function of a; zero if the argument is zero,
+  1.0 if the argument is greater than zero, -1.0 if the argument
+  is less than zero."
+  {:added "1.11"}
+  [a]
+  (cond
+    (pos? a) 1.0
+    (neg? a) -1.0
+    :else 0.0))
+
+(defn to-radians
+  "Converts an angle measured in degrees to radians."
+  {:added "1.11"}
+  [deg]
+  (* deg (/ PI 180.0)))
+
+(defn to-degrees
+  "Converts an angle measured in radians to degrees."
+  {:added "1.11"}
+  [rad]
+  (* rad (/ 180.0 PI)))
+
+(defn sinh
+  "Returns the hyperbolic sine of x."
+  {:added "1.11"}
+  [x]
+  (math/sinh x))
+
+(defn cosh
+  "Returns the hyperbolic cosine of x."
+  {:added "1.11"}
+  [x]
+  (math/cosh x))
+
+(defn tanh
+  "Returns the hyperbolic tangent of x."
+  {:added "1.11"}
+  [x]
+  (math/tanh x))
+
+(defn hypot
+  "Returns sqrt(x^2 + y^2) without intermediate overflow or underflow."
+  {:added "1.11"}
+  [x y]
+  (math/sqrt (+ (* x x) (* y y))))
+
+(defn copy-sign
+  "Returns the first floating-point argument with the sign of the
+  second floating-point argument."
+  {:added "1.11"}
+  [magnitude sign]
+  (if (neg? sign)
+    (- (abs magnitude))
+    (abs magnitude)))

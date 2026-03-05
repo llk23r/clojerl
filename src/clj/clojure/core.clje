@@ -6365,6 +6365,244 @@
 ;;    (throw t)))
 
 ;;------------------------------------------------------------------------------
+;; Clojure 1.10
+;;------------------------------------------------------------------------------
+
+(defn requiring-resolve
+  "Resolves namespace-qualified sym per 'resolve'. If initial resolve
+  fails, attempts to require sym's namespace and retries."
+  {:added "1.10"}
+  [sym]
+  (if (qualified-symbol? sym)
+    (or (resolve sym)
+        (do (-> sym namespace symbol require)
+            (resolve sym)))
+    (throw (str "Not a qualified symbol: " sym))))
+
+(defonce ^:private tapset (atom #{}))
+(defonce ^:private tapq (atom []))
+
+(defn add-tap
+  "adds f, a fn of one argument, to the tap set."
+  {:added "1.10"}
+  [f]
+  (swap! tapset conj f)
+  nil)
+
+(defn remove-tap
+  "Remove f from the tap set."
+  {:added "1.10"}
+  [f]
+  (swap! tapset disj f)
+  nil)
+
+(defn tap>
+  "sends x to any taps. Will not block. Returns true if there was room
+  in the queue, false if not (dropping the value)."
+  {:added "1.10"}
+  [x]
+  (when (seq @tapset)
+    (doseq [tap @tapset]
+      (try
+        (tap x)
+        (catch _ _))))
+  true)
+
+;;------------------------------------------------------------------------------
+;; Clojure 1.11
+;;------------------------------------------------------------------------------
+
+(defn abs
+  "Returns the absolute value of a.
+  If a is ##Inf or ##-Inf, returns ##Inf
+  If a is ##NaN, returns ##NaN"
+  {:added "1.11"}
+  [a]
+  (cond
+    (identical? a ##NaN) ##NaN
+    (identical? a ##Inf) ##Inf
+    (identical? a ##-Inf) ##Inf
+    (float? a) (erlang/abs a)
+    (integer? a) (if (neg? a) (- a) a)
+    :else (throw (str "Unsupported type: " (type a)))))
+
+(defn NaN?
+  "Returns true if num is NaN, else false"
+  {:added "1.11"}
+  [num]
+  (identical? num ##NaN))
+
+(defn infinite?
+  "Returns true if num is positive or negative infinity, else false"
+  {:added "1.11"}
+  [num]
+  (or (identical? num ##Inf) (identical? num ##-Inf)))
+
+(defn parse-long
+  "parse-long will parse a string into a long. Will throw on
+  overflow. Returns nil if not a long."
+  {:added "1.11"}
+  [s]
+  (try
+    (erlang/binary_to_integer s)
+    (catch _ _ nil)))
+
+(defn parse-double
+  "parse-double will parse a string into a double. Returns nil if
+  not a double."
+  {:added "1.11"}
+  [s]
+  (try
+    (erlang/binary_to_float s)
+    (catch _ _
+      (try
+        (float (erlang/binary_to_integer s))
+        (catch _ _ nil)))))
+
+(defn parse-boolean
+  "parse-boolean will parse a string into a boolean. Returns true for
+  the string \"true\", false for the string \"false\", and nil for
+  everything else."
+  {:added "1.11"}
+  [s]
+  (case s
+    "true" true
+    "false" false
+    nil))
+
+(defn parse-uuid
+  "Creates a UUID from a string conforming to the UUID spec."
+  {:added "1.11"}
+  [s]
+  (new erlang.util.UUID s))
+
+(defn random-uuid
+  "Returns a pseudo-randomly generated UUID."
+  {:added "1.11"}
+  []
+  (erlang.util.UUID/random))
+
+(defn update-keys
+  "m f => {(f k) v ...}
+
+  Given a map m and a function f of 1-argument, returns a new map whose
+  keys are the result of applying f to the keys of m, mapped to the
+  corresponding values of m.
+  f must return a unique key for each key of m, else the behavior is undefined."
+  {:added "1.11"}
+  [m f]
+  (let [ret (reduce-kv (fn [acc k v] (assoc acc (f k) v))
+                       {}
+                       m)]
+    (with-meta ret (meta m))))
+
+(defn update-vals
+  "m f => {k (f v) ...}
+
+  Given a map m and a function f of 1-argument, returns a new map where the keys of m
+  are mapped to the result of applying f to the corresponding values of m."
+  {:added "1.11"}
+  [m f]
+  (let [ret (reduce-kv (fn [acc k v] (assoc acc k (f v)))
+                       {}
+                       m)]
+    (with-meta ret (meta m))))
+
+(defn iteration
+  "Creates a seqable/reducible via repeated calls to step,
+  a function of some (continuation token) 'k'. If 'k' is non-nil,
+  step must return a map containing either :some-ret or :none (but
+  not both). If :some-ret, its value is the next item. If :none or
+  nil, the seq is done.
+
+  'step' - (fn [k] ...) - called with 'k', returns map or nil
+  opts:
+  :somef - (fn [result] ...) - returns logically true if result has a value.
+           Defaults to #(contains? % :some-ret)
+  :vf    - (fn [result] ...) - extracts the value from result.
+           Defaults to :some-ret
+  :kf    - (fn [result] ...) - extracts the next 'k' from result.
+           Defaults to :some-ret
+  :initk - the initial 'k'. Defaults to nil."
+  {:added "1.11"}
+  [step & {:keys [somef vf kf initk]
+           :or {somef #(contains? % :some-ret)
+                vf :some-ret
+                kf :some-ret
+                initk nil}}]
+  (letfn [(iter [k]
+            (lazy-seq
+              (let [ret (step k)]
+                (when (somef ret)
+                  (cons (vf ret) (iter (kf ret)))))))]
+    (iter initk)))
+
+;;------------------------------------------------------------------------------
+;; Clojure 1.12
+;;------------------------------------------------------------------------------
+
+(defn partitionv
+  "Returns a lazy sequence of vectors of n items each, at offsets step
+  apart. If step is not supplied, defaults to n, i.e. the partitions
+  do not overlap. If a pad collection is supplied, use its elements as
+  necessary to complete last partition up to n items. In case there are
+  not enough padding elements, return a partition with less than n items."
+  {:added "1.12"}
+  ([n coll]
+     (partitionv n n coll))
+  ([n step coll]
+     (lazy-seq
+       (when-let [s (seq coll)]
+         (let [p (into [] (take n) s)]
+           (when (= n (count p))
+             (cons p (partitionv n step (nthrest s step))))))))
+  ([n step pad coll]
+     (lazy-seq
+       (when-let [s (seq coll)]
+         (let [p (into [] (take n) s)]
+           (if (= n (count p))
+             (cons p (partitionv n step pad (nthrest s step)))
+             (list (into [] (take n) (concat p pad)))))))))
+
+(defn partitionv-all
+  "Returns a lazy sequence of vectors of n items each, at offsets step
+  apart. If step is not supplied, defaults to n, i.e. the partitions
+  do not overlap. Unlike partition, may include partitions with fewer
+  than n items at the end. Returns vectors instead of lists."
+  {:added "1.12"}
+  ([n]
+   (fn [rf]
+     (let [a (atom [])]
+       (fn
+         ([] (rf))
+         ([result]
+          (let [v @a]
+            (if (empty? v)
+              (rf result)
+              (let [v (vec v)]
+                (reset! a [])
+                (rf (unreduced (rf result v)))))))
+         ([result input]
+          (let [v (swap! a conj input)]
+            (if (= n (count v))
+              (do (reset! a [])
+                  (rf result (vec v)))
+              result)))))))
+  ([n coll]
+     (partitionv-all n n coll))
+  ([n step coll]
+     (lazy-seq
+       (when-let [s (seq coll)]
+         (let [p (into [] (take n) s)]
+           (cons p (partitionv-all n step (nthrest s step))))))))
+
+(defn splitv-at
+  "Returns a vector of [(into [] (take n) coll) (drop n coll)]"
+  {:added "1.12"}
+  [n coll]
+  [(into [] (take n) coll) (drop n coll)])
+
+;;------------------------------------------------------------------------------
 ;;------------------------------------------------------------------------------
 
 (defmacro simple-benchmark

@@ -110,6 +110,9 @@ namespace(Keyword) ->
 
 %% clojerl.IStringable
 
+str('##Inf')  -> <<"##Inf">>;
+str('##-Inf') -> <<"##-Inf">>;
+str('##NaN')  -> <<"##NaN">>;
 str(Keyword) ->
   KeywordBin = atom_to_binary(Keyword, utf8),
   <<":", KeywordBin/binary>>.
